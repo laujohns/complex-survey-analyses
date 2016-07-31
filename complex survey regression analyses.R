@@ -11,7 +11,7 @@ library (psych)
 library(nlme)
 library (survey)
 
-setwd ("C:/Users/laujohns/Dropbox/Vitamin D - NHANES/Analyses/R code") #set working directory
+setwd ("") #set working directory
 
 #### Load datasets ####
 
@@ -136,8 +136,6 @@ vitd2$smk[vitd2$smq020==7|vitd2$smq020==9]<-NA
 vitd2$smk <- factor(vitd2$smk,
                          levels = c(1,2),
                          labels = c("Yes", "No"))
-class(vitd2$smk)
-summ(vitd2$smk)
 
 vitd2$smk_cat[vitd2$smq040==1 | vitd2$smq040==2]<-1 #current smoker
 vitd2$smk_cat[vitd2$smq040==3]<-2 #former
@@ -159,7 +157,6 @@ table2
 vitd2$bmi<-vitd2$bmxbmi #continuous
 vitd2$bmi_cat<-cut2(vitd2$bmi, c(18.5 , 25, 30)) #<18.5, 18.5-24.99, 25-29.99, 30+
 summ(vitd2$bmi_cat)
-
 #see if recode worked
 class(vitd2$bmi_cat)
 table(vitd2$bmi_cat)
@@ -171,7 +168,6 @@ vitd2$season<-vitd2$ridexmon #1=nov1-april30; 2=may1-oct31
 vitd2$season <- factor(vitd2$season,
                        levels = c(1,2),
                        labels = c("November 1-April 30", "May 1 - October 31"))
-
 #see if recode worked
 table<-table(vitd2$season, vitd2$cycle)
 table
@@ -180,7 +176,6 @@ table2
 
 ##### create cotinine variable ### 
 vitd2$cot<-vitd2$lbxcot
-
 #see if recode worked
 tapply(vitd2$cot, vitd2$cycle, mean, na.rm=T)
 tapply(vitd2$lbxcot, vitd2$cycle, mean, na.rm=T)
@@ -189,24 +184,20 @@ summary(vitd2$cot)
 #######create survey design#########
 summ(vitd2$weight)
 vitd2$weight[is.na(vitd2$weight)]<-0 #assign a weight of 0 for missing "weight" variables so can create design
+summ(vitd2$weight[which(vitd2$weight==0)]) # see if this worked
 
-summ(vitd2$weight[which(vitd2$weight==0)])
-
-vitd2$weight6yr<-vitd2$weight/3 #weight variable created in SAS
-
-tapply(vitd2$weight, vitd2$cycle, mean, na.rm=T)
+vitd2$weight6yr<-vitd2$weight/3 #need to divide by 3 because 6 cycles
+tapply(vitd2$weight, vitd2$cycle, mean, na.rm=T)# see if this recode worked
 tapply(vitd2$weight6yr, vitd2$cycle, mean, na.rm=T)
 
-vitd.dsn<-svydesign(id=~sdmvpsu, strata=~sdmvstra, weights=~weight6yr, data=vitd2, nest=T) #need to create complete dataset
+#create design
+vitd.dsn<-svydesign(id=~sdmvpsu, strata=~sdmvstra, weights=~weight6yr, data=vitd2, nest=T) 
 
 ###########################TABLE 1: DEMOGRAPHICS##############################
 #Create complete datasets for BPA and phthalates so can figure out N's and %
-
-#vitd2_ph_comp<- na.omit(vitd2[,c("urxucr","urxmbp", "urxbph", "vitamin_d", "pir", "race", "age", "age_cat", "bmi", "bmi_cat","edu_cat",
-                                 #"season","sex", "vitdsup", "cot", "cycle", "sdmvpsu","weight8yr","sdmvstra","weight")]) #already >=20 year olds because of edu_cat variable
-
 vitd2_ph_comp<-subset(vitd2, !is.na(vitd2$urxmep) & !is.na(vitd2$urxucr) & !is.na(vitd2$urxbph) & !is.na(vitd2$vitamin_d) & vitd2$age>=20)#subset data, #4724
 
+#recreate study design
 vitd.ph.comp.dsn<-svydesign(id=~sdmvpsu, strata=~sdmvstra, weights=~weight6yr, data=vitd2_ph_comp, nest=T) #need to create complete dataset
 
 ##### weighted N and % ######
@@ -217,10 +208,9 @@ table(is.na(vitd2_ph_comp$vitamin_d))
 
 ###AGE###
 vitd2_ph_comp$age_cat<-cut2(vitd2_ph_comp$age, c(20, 40, 60), minmax=T) #[a,b) no need to specify lower
-
 prop.table(table(vitd2_ph_comp$age_cat))#for unweighted %
 table(vitd2_ph_comp$age_cat)#frequencies
-svytable(~vitd2_ph_comp$age_cat, Ntotal=100, vitd.ph.comp.dsn)
+svytable(~vitd2_ph_comp$age_cat, Ntotal=100, vitd.ph.comp.dsn)#for weighted frequencies
 table(vitd2_ph_comp$cycle)
 summ(vitd2_ph_comp$age)
 
@@ -266,7 +256,7 @@ prop.table(table(vitd2_ph_comp$edu_cat))
 svytable(~vitd2_ph_comp$edu_cat, Ntotal=100, vitd.ph.comp.dsn)
 summ(vitd2_ph_comp$edu_cat)
 
-###median and IQR of vitamin D by demographics###
+#### Weighted means, medians and IQRs of vitamin D by demographic characteristics ####
 
 #Age
 svyquantile(~vitd2_ph_comp$vitamin_d,vitd.ph.comp.dsn,c(0.5,0.25,0.75),na.rm=TRUE)
@@ -353,7 +343,7 @@ svyby(~vitamin_d, by=~factor(edu_cat, c("4","3","2","1")), design=vitd.ph.comp.d
 
 summary(svyglm(vitamin_d~factor(edu_cat, c("4","3","2","1")), vitd.ph.comp.dsn, na.action=na.omit))
 
-####################TABLE 2: GM AND QUANTILES OF PHTHALATES#######################
+####################TABLE 2: GM AND QUANTILES OF Exposures#######################
 
 #MEHP
 prop.table(table(vitd2_ph_comp$urdmhplc))
@@ -587,6 +577,7 @@ summary(svyglm(vitamin_d~log(vitd2.women$urxmcp)+log(vitd2.women$urxucr)+ vitd2.
            + factor(vitd2.women$season) + factor(cycle), data=vitd2.women))#p<0.05
 
 hist(vitd2_ph_comp$vitamin_d[which(vitd2_ph_comp$vitdsu==1)])
+
 ###########calculate IQR for conversion##########
 
 svyquantile(~urxbph,vitd.ph.comp.dsn,c(0.25,0.75),na.rm=TRUE)
@@ -633,7 +624,6 @@ svyquantile(~urxmc1,vitd2.male.dsn,c(0.25,0.75),na.rm=TRUE)
 svyquantile(~urxcnp,vitd2.male.dsn,c(0.25,0.75),na.rm=TRUE)
 svyquantile(~urxcop,vitd2.male.dsn,c(0.25,0.75),na.rm=TRUE)
 svyquantile(~vitamin_d,vitd2.male.dsn,c(.5),na.rm=TRUE)
-
 
 ########### Weighted Models ###############
 
@@ -856,331 +846,11 @@ male<-svyglm(vitamin_d~log(urxcop)+log(urxucr)+ age  + factor(race)+ bmi+ log(co
 summary(male)
 confint(male, level=0.95)
 
-#########20-39 Women#########
-options(survey.lonely.psu = "adjust")#this is the conservative approach for strata with only 1 PSU
-#from UCLA's stats department:The most conservative approach would be to center any single-PSU strata around the sample grand mean rather than the stratum mean
+######### Unweighted analyses to compare results #########
 
-f.2039<-svyglm(vitamin_d~log(urxbph)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.female.dsn, na.action=na.omit)
-summary(f.2039)
-confint(f.2039, level=0.95)
-
-f.2039<-svyglm(vitamin_d~log(urxmhp)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.female.dsn, na.action=na.omit)
-summary(f.2039)
-confint(f.2039, level=0.95)
-
-f.2039<-svyglm(vitamin_d~log(urxmhh)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.female.dsn, na.action=na.omit)
-summary(f.2039)
-confint(f.2039, level=0.95)
-
-f.2039<-svyglm(vitamin_d~log(urxmoh)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.female.dsn, na.action=na.omit)
-summary(f.2039)
-confint(f.2039, level=0.95)
-
-f.2039<-svyglm(vitamin_d~log(urxecp)+log(urxucr)+ age + factor(race)+ pir + bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.female.dsn, na.action=na.omit)
-summary(f.2039)
-confint(f.2039, level=0.95)
-
-f.2039<-svyglm(vitamin_d~log(dehpsum)+log(urxucr)+ age + factor(race)+ pir + bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.female.dsn, na.action=na.omit)
-summary(f.2039)
-confint(f.2039, level=0.95)
-
-f.2039<-svyglm(vitamin_d~log(urxmbp)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.female.dsn, na.action=na.omit)
-summary(f.2039)
-confint(f.2039, level=0.95)
-
-f.2039<-svyglm(vitamin_d~log(urxmib)+log(urxucr)+ age + factor(race)+ pir + bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.female.dsn, na.action=na.omit)
-summary(f.2039)
-confint(f.2039, level=0.95)
-
-f.2039<-svyglm(vitamin_d~log(urxmep)+log(urxucr)+ age + factor(race)+ pir+  bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.female.dsn, na.action=na.omit)
-summary(f.2039)
-confint(f.2039, level=0.95)
-
-f.2039<-svyglm(vitamin_d~log(urxmzp)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.female.dsn, na.action=na.omit)
-summary(f.2039)
-confint(f.2039, level=0.95)
-
-f.2039<-svyglm(vitamin_d~log(urxmc1)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.female.dsn, na.action=na.omit)
-summary(f.2039)
-confint(f.2039, level=0.95)
-
-f.2039<-svyglm(vitamin_d~log(urxcnp)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.female.dsn, na.action=na.omit)
-summary(f.2039)
-confint(f.2039, level=0.95)
-
-f.2039<-svyglm(vitamin_d~log(urxcop)+log(urxucr)+ age + factor(race)+ pir + bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.female.dsn, na.action=na.omit)
-summary(f.2039)
-confint(f.2039, level=0.95)
-
-#########40-59 Women#########
-f.4059<-svyglm(vitamin_d~log(urxbph)+log(urxucr)+ age + factor(race)+ pir +bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.female.dsn, na.action=na.omit)
-summary(f.4059)
-confint(f.4059, level=0.95)
-
-f.4059<-svyglm(vitamin_d~log(urxmhp)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.female.dsn, na.action=na.omit)
-summary(f.4059)
-confint(f.4059, level=0.95)
-
-f.4059<-svyglm(vitamin_d~log(urxmhh)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.female.dsn, na.action=na.omit)
-summary(f.4059)
-confint(f.4059, level=0.95)
-
-f.4059<-svyglm(vitamin_d~log(urxmoh)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.female.dsn, na.action=na.omit)
-summary(f.4059)
-confint(f.4059, level=0.95)
-
-f.4059<-svyglm(vitamin_d~log(urxecp)+log(urxucr)+ age + factor(race)+ pir + bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.female.dsn, na.action=na.omit)
-summary(f.4059)
-confint(f.4059, level=0.95)
-
-f.4059<-svyglm(vitamin_d~log(dehpsum)+log(urxucr)+ age + factor(race)+ pir + bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.female.dsn, na.action=na.omit)
-summary(f.4059)
-confint(f.4059, level=0.95)
-
-f.4059<-svyglm(vitamin_d~log(urxmbp)+log(urxucr)+ age + factor(race)+ pir + bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.female.dsn, na.action=na.omit)
-summary(f.4059)
-confint(f.4059, level=0.95)
-
-f.4059<-svyglm(vitamin_d~log(urxmib)+log(urxucr)+ age + factor(race)+ pir + bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.female.dsn, na.action=na.omit)
-summary(f.4059)
-confint(f.4059, level=0.95)
-
-f.4059<-svyglm(vitamin_d~log(urxmep)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.female.dsn, na.action=na.omit)
-summary(f.4059)
-confint(f.4059, level=0.95)
-
-f.4059<-svyglm(vitamin_d~log(urxmzp)+log(urxucr)+ age + factor(race)+ pir + bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.female.dsn, na.action=na.omit)
-summary(f.4059)
-confint(f.4059, level=0.95)
-
-f.4059<-svyglm(vitamin_d~log(urxmc1)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.female.dsn, na.action=na.omit)
-summary(f.4059)
-confint(f.4059, level=0.95)
-
-f.4059<-svyglm(vitamin_d~log(urxcnp)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.female.dsn, na.action=na.omit)
-summary(f.4059)
-confint(f.4059, level=0.95)
-
-f.4059<-svyglm(vitamin_d~log(urxcop)+log(urxucr)+ age + factor(race)+ pir + bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.female.dsn, na.action=na.omit)
-summary(f.4059)
-confint(f.4059, level=0.95)
-
-######### 60+ Women#########
-f.60<-svyglm(vitamin_d~log(urxbph)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.female.dsn, na.action=na.omit)
-summary(f.60)
-confint(f.60, level=0.95)
-
-f.60<-svyglm(vitamin_d~log(urxmhp)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.female.dsn, na.action=na.omit)
-summary(f.60)
-confint(f.60, level=0.95)
-
-f.60<-svyglm(vitamin_d~log(urxmhh)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.female.dsn, na.action=na.omit)
-summary(f.60)
-confint(f.60, level=0.95)
-
-f.60<-svyglm(vitamin_d~log(urxmoh)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.female.dsn, na.action=na.omit)
-summary(f.60)
-confint(f.60, level=0.95)
-
-f.60<-svyglm(vitamin_d~log(urxecp)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.female.dsn, na.action=na.omit)
-summary(f.60)
-confint(f.60, level=0.95)
-
-f.60<-svyglm(vitamin_d~log(dehpsum)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.female.dsn, na.action=na.omit)
-summary(f.60)
-confint(f.60, level=0.95)
-
-f.60<-svyglm(vitamin_d~log(urxmbp)+log(urxucr)+ age + factor(race)+ pir+bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.female.dsn, na.action=na.omit)
-summary(f.60)
-confint(f.60, level=0.95)
-
-f.60<-svyglm(vitamin_d~log(urxmib)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.female.dsn, na.action=na.omit)
-summary(f.60)
-confint(f.60, level=0.95)
-
-f.60<-svyglm(vitamin_d~log(urxmep)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.female.dsn, na.action=na.omit)
-summary(f.60)
-confint(f.60, level=0.95)
-
-f.60<-svyglm(vitamin_d~log(urxmzp)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.female.dsn, na.action=na.omit)
-summary(f.60)
-confint(f.60, level=0.95)
-
-f.60<-svyglm(vitamin_d~log(urxmc1)+log(urxucr)+ age + factor(race)+ pir+bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.female.dsn, na.action=na.omit)
-summary(f.60)
-confint(f.60, level=0.95)
-
-f.60<-svyglm(vitamin_d~log(urxcnp)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.female.dsn, na.action=na.omit)
-summary(f.60)
-confint(f.60, level=0.95)
-
-f.60<-svyglm(vitamin_d~log(urxcop)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.female.dsn, na.action=na.omit)
-summary(f.60)
-confint(f.60, level=0.95)
-
-#########20-39 Men#########
-m.2039<-svyglm(vitamin_d~log(urxbph)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.male.dsn, na.action=na.omit)
-summary(m.2039)
-confint(m.2039, level=0.95)
-
-m.2039<-svyglm(vitamin_d~log(urxmhp)+log(urxucr)+ age + factor(race)+ pir + bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.male.dsn, na.action=na.omit)
-summary(m.2039)
-confint(m.2039, level=0.95)
-
-m.2039<-svyglm(vitamin_d~log(urxmhh)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.male.dsn, na.action=na.omit)
-summary(m.2039)
-confint(m.2039, level=0.95)
-
-m.2039<-svyglm(vitamin_d~log(urxmoh)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.male.dsn, na.action=na.omit)
-summary(m.2039)
-confint(m.2039, level=0.95)
-
-m.2039<-svyglm(vitamin_d~log(urxecp)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.male.dsn, na.action=na.omit)
-summary(m.2039)
-confint(m.2039, level=0.95)
-
-m.2039<-svyglm(vitamin_d~log(dehpsum)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.male.dsn, na.action=na.omit)
-summary(m.2039)
-confint(m.2039, level=0.95)
-
-m.2039<-svyglm(vitamin_d~log(urxmbp)+log(urxucr)+ age + factor(race)+ pir+bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.male.dsn, na.action=na.omit)
-summary(m.2039)
-confint(m.2039, level=0.95)
-
-m.2039<-svyglm(vitamin_d~log(urxmib)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.male.dsn, na.action=na.omit)
-summary(m.2039)
-confint(m.2039, level=0.95)
-
-m.2039<-svyglm(vitamin_d~log(urxmep)+log(urxucr)+ age + factor(race)+ bmi+ pir+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.male.dsn, na.action=na.omit)
-summary(m.2039)
-confint(m.2039, level=0.95)
-
-m.2039<-svyglm(vitamin_d~log(urxmzp)+log(urxucr)+ age + factor(race)+ bmi+ pir +log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.male.dsn, na.action=na.omit)
-summary(m.2039)
-confint(m.2039, level=0.95)
-
-m.2039<-svyglm(vitamin_d~log(urxmc1)+log(urxucr)+ age + factor(race)+ bmi+ pir + log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.male.dsn, na.action=na.omit)
-summary(m.2039)
-confint(m.2039, level=0.95)
-
-m.2039<-svyglm(vitamin_d~log(urxcnp)+log(urxucr)+ age + factor(race)+ bmi+ pir + log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.male.dsn, na.action=na.omit)
-summary(m.2039)
-confint(m.2039, level=0.95)
-
-m.2039<-svyglm(vitamin_d~log(urxcop)+log(urxucr)+ age + factor(race)+ bmi+ pir + log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.2039.male.dsn, na.action=na.omit)
-summary(m.2039)
-confint(m.2039, level=0.95)
-
-#########40-59 Men#########
-m.4059<-svyglm(vitamin_d~log(urxbph)+log(urxucr)+ age + factor(race)+ bmi+ pir+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.male.dsn, na.action=na.omit)
-summary(m.4059)
-confint(m.4059, level=0.95)
-
-m.4059<-svyglm(vitamin_d~log(urxmhp)+log(urxucr)+ age + factor(race)+ bmi+ pir+log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.male.dsn, na.action=na.omit)
-summary(m.4059)
-confint(m.4059, level=0.95)
-
-m.4059<-svyglm(vitamin_d~log(urxmhh)+log(urxucr)+ age + factor(race)+ bmi+ pir+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.male.dsn, na.action=na.omit)
-summary(m.4059)
-confint(m.4059, level=0.95)
-
-m.4059<-svyglm(vitamin_d~log(urxmoh)+log(urxucr)+ age + factor(race)+ bmi+ pir+log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.male.dsn, na.action=na.omit)
-summary(m.4059)
-confint(m.4059, level=0.95)
-
-m.4059<-svyglm(vitamin_d~log(urxecp)+log(urxucr)+ age + factor(race)+ bmi+ pir+log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.male.dsn, na.action=na.omit)
-summary(m.4059)
-confint(m.4059, level=0.95)
-
-m.4059<-svyglm(vitamin_d~log(dehpsum)+log(urxucr)+ age + factor(race)+ bmi+ pir+log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.male.dsn, na.action=na.omit)
-summary(m.4059)
-confint(m.4059, level=0.95)
-
-m.4059<-svyglm(vitamin_d~log(urxmbp)+log(urxucr)+ age + factor(race)+ bmi+ pir+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.male.dsn, na.action=na.omit)
-summary(m.4059)
-confint(m.4059, level=0.95)
-
-m.4059<-svyglm(vitamin_d~log(urxmib)+log(urxucr)+ age + factor(race)+ bmi+ pir+log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.male.dsn, na.action=na.omit)
-summary(m.4059)
-confint(m.4059, level=0.95)
-
-m.4059<-svyglm(vitamin_d~log(urxmep)+log(urxucr)+ age + factor(race)+ bmi+pir+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.male.dsn, na.action=na.omit)
-summary(m.4059)
-confint(m.4059, level=0.95)
-
-m.4059<-svyglm(vitamin_d~log(urxmzp)+log(urxucr)+ age + factor(race)+ bmi+ pir+log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.male.dsn, na.action=na.omit)
-summary(m.4059)
-confint(m.4059, level=0.95)
-
-m.4059<-svyglm(vitamin_d~log(urxmc1)+log(urxucr)+ age + factor(race)+ bmi+ pir+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.male.dsn, na.action=na.omit)
-summary(m.4059)
-confint(m.4059, level=0.95)
-
-m.4059<-svyglm(vitamin_d~log(urxcnp)+log(urxucr)+ age + factor(race)+ bmi+ pir+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.male.dsn, na.action=na.omit)
-summary(m.4059)
-confint(m.4059, level=0.95)
-
-m.4059<-svyglm(vitamin_d~log(urxcop)+log(urxucr)+ age + factor(race)+ bmi+ pir+log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.4059.male.dsn, na.action=na.omit)
-summary(m.4059)
-confint(m.4059, level=0.95)
-
-######### 60+ Men#########
-m.60<-svyglm(vitamin_d~log(urxbph)+log(urxucr)+ age + factor(race)+ bmi+ pir+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.male.dsn, na.action=na.omit)
-summary(m.60)
-confint(m.60, level=0.95)
-
-m.60<-svyglm(vitamin_d~log(urxmhp)+log(urxucr)+ age + factor(race)+ bmi+pir+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.male.dsn, na.action=na.omit)
-summary(m.60)
-confint(m.60, level=0.95)
-
-m.60<-svyglm(vitamin_d~log(urxmhh)+log(urxucr)+ age + factor(race)+ bmi+ pir+log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.male.dsn, na.action=na.omit)
-summary(m.60)
-confint(m.60, level=0.95)
-
-m.60<-svyglm(vitamin_d~log(urxmoh)+log(urxucr)+ age + factor(race)+ bmi+pir+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.male.dsn, na.action=na.omit)
-summary(m.60)
-confint(m.60, level=0.95)
-
-m.60<-svyglm(vitamin_d~log(urxecp)+log(urxucr)+ age + factor(race)+ bmi+ pir+log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.male.dsn, na.action=na.omit)
-summary(m.60)
-confint(m.60, level=0.95)
-
-m.60<-svyglm(vitamin_d~log(dehpsum)+log(urxucr)+ age + factor(race)+ bmi+pir+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.male.dsn, na.action=na.omit)
-summary(m.60)
-confint(m.60, level=0.95)
-
-m.60<-svyglm(vitamin_d~log(urxmbp)+log(urxucr)+ age + factor(race)+ bmi+ pir+log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.male.dsn, na.action=na.omit)
-summary(m.60)
-confint(m.60, level=0.95)
-
-m.60<-svyglm(vitamin_d~log(urxmib)+log(urxucr)+ age + factor(race)+ bmi+pir+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.male.dsn, na.action=na.omit)
-summary(m.60)
-confint(m.60, level=0.95)
-
-m.60<-svyglm(vitamin_d~log(urxmep)+log(urxucr)+ age + factor(race)+ bmi+pir+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.male.dsn, na.action=na.omit)
-summary(m.60)
-confint(m.60, level=0.95)
-
-m.60<-svyglm(vitamin_d~log(urxmzp)+log(urxucr)+ age + factor(race)+ bmi+ pir+log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.male.dsn, na.action=na.omit)
-summary(m.60)
-confint(m.60, level=0.95)
-
-m.60<-svyglm(vitamin_d~log(urxmc1)+log(urxucr)+ age + factor(race)+ bmi+pir+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.male.dsn, na.action=na.omit)
-summary(m.60)
-confint(m.60, level=0.95)
-
-m.60<-svyglm(vitamin_d~log(urxcnp)+log(urxucr)+ age + factor(race)+ bmi+pir+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.male.dsn, na.action=na.omit)
-summary(m.60)
-confint(m.60, level=0.95)
-
-m.60<-svyglm(vitamin_d~log(urxcop)+log(urxucr)+ age + factor(race)+ bmi+pir+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.60.male.dsn, na.action=na.omit)
-summary(m.60)
-confint(m.60, level=0.95)
-
-###run multiple models
 ###females only
-female.2039.models=function(x){
-  vitd.x.female<-lm(vitamin_d~log(x)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + dsqtvd + factor(cycle), data=vitd2.2039.female, na.action=na.omit)
+female.models=function(x){
+  vitd.x.female<-lm(vitamin_d~log(x)+log(urxucr)+ age + factor(race)+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), data=vitd2.female, na.action=na.omit)
   b.x<-summary(vitd.x.female)$coef[2,1]
   se.x<-summary(vitd.x.female)$coef[2,2]
   p.x<-summary(vitd.x.female)$coef[2,4]
@@ -1189,50 +859,15 @@ female.2039.models=function(x){
   #nobs <- (vitd.x.female)
   all.x<-cbind(b.x,se.x,p.x, lo95ci, hi95ci)#, nobs)
   return(all.x)}
-female.results<-rbind(female.2039.models(vitd2.2039.female$urxbph),female.2039.models(vitd2.2039.female$urxmhp),female.2039.models(vitd2.2039.female$urxmhh),female.2039.models(vitd2.2039.female$urxmoh),female.2039.models(vitd2.2039.female$urxecp),female.2039.models(vitd2.2039.female$dehpsum),
-female.2039.models(vitd2.2039.female$urxmbp),female.2039.models(vitd2.2039.female$urxmib),female.2039.models(vitd2.2039.female$urxmep),female.2039.models(vitd2.2039.female$urxmzp),female.2039.models(vitd2.2039.female$urxmc1),female.2039.models(vitd2.2039.female$urxcnp), 
-female.2039.models(vitd2.2039.female$urxcop))
+female.results<-rbind(female.models(vitd2.female$urxbph),female.models(vitd2.2039.female$urxmhp),female.models(vitd2.female$urxmhh),female.models(vitd2.female$urxmoh),female.models(vitd2.female$urxecp),female.models(vitd2.female$dehpsum),
+female.models(vitd2.2039.female$urxmbp),female.models(vitd2.female$urxmib),female.models(vitd2.2039.female$urxmep),female.models(vitd2.female$urxmzp),female.models(vitd2.female$urxmc1),female.models(vitd2.female$urxcnp), 
+female.models(vitd2.2039.female$urxcop))
 row.names(female.results)<-c("BPA","MEHP","MEHHP","MEOHP","MECPP","DEHPsum","MBP","MiBP","MEP","MBzP","MCPP","MCNP","MCOP")
 female.results
 write.csv(female.results, file="female_2039.csv")
 
-female.4059.models=function(x){
-  vitd.x.female<-lm(vitamin_d~log(x)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), data=vitd2.4059.female, na.action=na.omit)
-  b.x<-summary(vitd.x.female)$coef[2,1]
-  se.x<-summary(vitd.x.female)$coef[2,2]
-  p.x<-summary(vitd.x.female)$coef[2,4]
-  lo95ci<- exp(b.x-1.96*se.x)
-  hi95ci<- exp(b.x+1.96*se.x)
-  #nobs <- (vitd.x.female)
-  all.x<-cbind(b.x,se.x,p.x, lo95ci, hi95ci)#, nobs)
-  return(all.x)}
-female.results<-rbind(female.4059.models(vitd2.4059.female$urxbph),female.4059.models(vitd2.4059.female$urxmhp),female.4059.models(vitd2.4059.female$urxmhh),female.4059.models(vitd2.4059.female$urxmoh),female.4059.models(vitd2.4059.female$urxecp),female.4059.models(vitd2.4059.female$dehpsum),
-                      female.4059.models(vitd2.4059.female$urxmbp),female.4059.models(vitd2.4059.female$urxmib),female.4059.models(vitd2.4059.female$urxmep),female.4059.models(vitd2.4059.female$urxmzp),female.4059.models(vitd2.4059.female$urxmc1),female.4059.models(vitd2.4059.female$urxcnp), 
-                      female.4059.models(vitd2.4059.female$urxcop))
-row.names(female.results)<-c("BPA","MEHP","MEHHP","MEOHP","MECPP","DEHPsum","MBP","MiBP","MEP","MBzP","MCPP","MCNP","MCOP")
-female.results
-write.csv(female.results, file="female_4059.csv")
-
-female.60.models=function(x){
-  vitd.x.female<-lm(vitamin_d~log(x)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), data=vitd2.60.female, na.action=na.omit)
-  b.x<-summary(vitd.x.female)$coef[2,1]
-  se.x<-summary(vitd.x.female)$coef[2,2]
-  p.x<-summary(vitd.x.female)$coef[2,4]
-  lo95ci<- exp(b.x-1.96*se.x)
-  hi95ci<- exp(b.x+1.96*se.x)
-  #nobs <- (vitd.x.female)
-  all.x<-cbind(b.x,se.x,p.x, lo95ci, hi95ci)#, nobs)
-  return(all.x)}
-female.results<-rbind(female.60.models(vitd2.60.female$urxbph),female.60.models(vitd2.60.female$urxmhp),female.60.models(vitd2.60.female$urxmhh),female.60.models(vitd2.60.female$urxmoh),female.60.models(vitd2.60.female$urxecp),female.60.models(vitd2.60.female$dehpsum),
-                      female.60.models(vitd2.60.female$urxmbp),female.60.models(vitd2.60.female$urxmib),female.60.models(vitd2.60.female$urxmep),female.60.models(vitd2.60.female$urxmzp),female.60.models(vitd2.60.female$urxmc1),female.60.models(vitd2.60.female$urxcnp), 
-                      female.60.models(vitd2.60.female$urxcop))
-row.names(female.results)<-c("BPA","MEHP","MEHHP","MEOHP","MECPP","DEHPsum","MBP","MiBP","MEP","MBzP","MCPP","MCNP","MCOP")
-female.results
-write.csv(female.results, file="female_60.csv")
-
-#### Males Only
-male.2039.models=function(x){
-  vitd.x.male<-lm(vitamin_d~log(x)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), data=vitd2.2039.male, na.action=na.omit)
+male.models=function(x){
+  vitd.x.male<-lm(vitamin_d~log(x)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), data=vitd2.male, na.action=na.omit)
   b.x<-summary(vitd.x.male)$coef[2,1]
   se.x<-summary(vitd.x.male)$coef[2,2]
   p.x<-summary(vitd.x.male)$coef[2,4]
@@ -1241,519 +876,12 @@ male.2039.models=function(x){
   #nobs <- (vitd.x.male)
   all.x<-cbind(b.x,se.x,p.x, lo95ci, hi95ci)#, nobs)
   return(all.x)}
-male.results<-rbind(male.2039.models(vitd2.2039.male$urxbph),male.2039.models(vitd2.2039.male$urxmhp),male.2039.models(vitd2.2039.male$urxmhh),male.2039.models(vitd2.2039.male$urxmoh),male.2039.models(vitd2.2039.male$urxecp),male.2039.models(vitd2.2039.male$dehpsum),
-                      male.2039.models(vitd2.2039.male$urxmbp),male.2039.models(vitd2.2039.male$urxmib),male.2039.models(vitd2.2039.male$urxmep),male.2039.models(vitd2.2039.male$urxmzp),male.2039.models(vitd2.2039.male$urxmc1),male.2039.models(vitd2.2039.male$urxcnp), 
-                      male.2039.models(vitd2.2039.male$urxcop))
-row.names(male.results)<-c("BPA","MEHP","MEHHP","MEOHP","MECPP","DEHPsum","MBP","MiBP","MEP","MBzP","MCPP","MCNP","MCOP")
-male.results
-write.csv(male.results, file="male_2039.csv")
-
-male.4059.models=function(x){
-  vitd.x.male<-lm(vitamin_d~log(x)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), data=vitd2.4059.male, na.action=na.omit)
-  b.x<-summary(vitd.x.male)$coef[2,1]
-  se.x<-summary(vitd.x.male)$coef[2,2]
-  p.x<-summary(vitd.x.male)$coef[2,4]
-  lo95ci<- exp(b.x-1.96*se.x)
-  hi95ci<- exp(b.x+1.96*se.x)
-  #nobs <- (vitd.x.male)
-  all.x<-cbind(b.x,se.x,p.x, lo95ci, hi95ci)#, nobs)
-  return(all.x)}
-male.results<-rbind(male.4059.models(vitd2.4059.male$urxbph),male.4059.models(vitd2.4059.male$urxmhp),male.4059.models(vitd2.4059.male$urxmhh),male.4059.models(vitd2.4059.male$urxmoh),male.4059.models(vitd2.4059.male$urxecp),male.4059.models(vitd2.4059.male$dehpsum),
-                      male.4059.models(vitd2.4059.male$urxmbp),male.4059.models(vitd2.4059.male$urxmib),male.4059.models(vitd2.4059.male$urxmep),male.4059.models(vitd2.4059.male$urxmzp),male.4059.models(vitd2.4059.male$urxmc1),male.4059.models(vitd2.4059.male$urxcnp), 
-                      male.4059.models(vitd2.4059.male$urxcop))
+male.results<-rbind(male.models(vitd2.male$urxbph),male.4059.models(vitd2.4059.male$urxmhp),male.4059.models(vitd2.4059.male$urxmhh),male.models(vitd2.male$urxmoh),male.models(vitd2.male$urxecp),male.models(vitd2.male$dehpsum),
+                      male.models(vitd2.male$urxmbp),male.4059.models(vitd2.4059.male$urxmib),male.4059.models(vitd2.4059.male$urxmep),male.models(vitd2.male$urxmzp),male.models(vitd2.male$urxmc1),male.models(vitd2.male$urxcnp), 
+                      male.models(vitd2.male$urxcop))
 row.names(male.results)<-c("BPA","MEHP","MEHHP","MEOHP","MECPP","DEHPsum","MBP","MiBP","MEP","MBzP","MCPP","MCNP","MCOP")
 male.results
 write.csv(male.results, file="male_4059.csv")
-
-male.60.models=function(x){
-  vitd.x.male<-lm(vitamin_d~log(x)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), data=vitd2.60.male, na.action=na.omit)
-  b.x<-summary(vitd.x.male)$coef[2,1]
-  se.x<-summary(vitd.x.male)$coef[2,2]
-  p.x<-summary(vitd.x.male)$coef[2,4]
-  lo95ci<- exp(b.x-1.96*se.x)
-  hi95ci<- exp(b.x+1.96*se.x)
-  #nobs <- (vitd.x.male)
-  all.x<-cbind(b.x,se.x,p.x, lo95ci, hi95ci)#, nobs)
-  return(all.x)}
-male.results<-rbind(male.60.models(vitd2.60.male$urxbph),male.60.models(vitd2.60.male$urxmhp),male.60.models(vitd2.60.male$urxmhh),male.60.models(vitd2.60.male$urxmoh),male.60.models(vitd2.60.male$urxecp),male.60.models(vitd2.60.male$dehpsum),
-                      male.60.models(vitd2.60.male$urxmbp),male.60.models(vitd2.60.male$urxmib),male.60.models(vitd2.60.male$urxmep),male.60.models(vitd2.60.male$urxmzp),male.60.models(vitd2.60.male$urxmc1),male.60.models(vitd2.60.male$urxcnp), 
-                      male.60.models(vitd2.60.male$urxcop))
-row.names(male.results)<-c("BPA","MEHP","MEHHP","MEOHP","MECPP","DEHPsum","MBP","MiBP","MEP","MBzP","MCPP","MCNP","MCOP")
-male.results
-write.csv(male.results, file="male_60.csv")
-
-######################Subset by Race/Ethnicity###############
-vitd2.white<-subset(vitd2_ph_comp, race==3)#white; N=2366
-vitd2.white.dsn<-svydesign(id=~sdmvpsu, strata=~sdmvstra, weights=~weight6yr, data=vitd2.white, nest=T)
-
-vitd2.black<-subset(vitd2_ph_comp, race==4)#black; N=887
-vitd2.black.dsn<-svydesign(id=~sdmvpsu, strata=~sdmvstra, weights=~weight6yr, data=vitd2.black, nest=T)
-
-vitd2.mexican<-subset(vitd2_ph_comp, race==1)#MA; N=879
-vitd2.mexican.dsn<-svydesign(id=~sdmvpsu, strata=~sdmvstra, weights=~weight6yr, data=vitd2.mexican, nest=T)
-
-################## Stratified by Race/Ethnicity#####################
-
-####WHITE
-
-white<-svyglm(vitamin_d~log(urxbph)+log(urxucr)+ age + factor (sex)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.white.dsn, na.action=na.omit)
-summary(black)
-confint(white, level=0.95)
-
-white<-svyglm(vitamin_d~log(urxmhp)+log(urxucr)+ age + factor(sex)+ pir + bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.white.dsn, na.action=na.omit)
-summary(white)
-confint(white, level=0.95)
-
-white<-svyglm(vitamin_d~log(urxmhh)+log(urxucr)+ age + factor(sex)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.white.dsn, na.action=na.omit)
-summary(white)
-confint(white, level=0.95)
-
-white<-svyglm(vitamin_d~log(urxmoh)+log(urxucr)+ age + factor(sex)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.white.dsn, na.action=na.omit)
-summary(white)
-confint(white, level=0.95)
-
-white<-svyglm(vitamin_d~log(urxecp)+log(urxucr)+ age + factor(sex)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.white.dsn, na.action=na.omit)
-summary(white)
-confint(white, level=0.95)
-
-white<-svyglm(vitamin_d~log(dehpsum)+log(urxucr)+ age + factor(sex)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.white.dsn, na.action=na.omit)
-summary(white)
-confint(white, level=0.95)
-
-white<-svyglm(vitamin_d~log(urxmbp)+log(urxucr)+ age + factor(sex)+ pir+bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.white.dsn, na.action=na.omit)
-summary(white)
-confint(white, level=0.95)
-
-white<-svyglm(vitamin_d~log(urxmib)+log(urxucr)+ age + factor(sex)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.white.dsn, na.action=na.omit)
-summary(white)
-confint(white, level=0.95)
-
-white<-svyglm(vitamin_d~log(urxmep)+log(urxucr)+ age + factor(sex)+ bmi+ pir+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.white.dsn, na.action=na.omit)
-summary(white)
-confint(white, level=0.95)
-
-white<-svyglm(vitamin_d~log(urxmzp)+log(urxucr)+ age + factor(sex)+ bmi+ pir +log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.white.dsn, na.action=na.omit)
-summary(white)
-confint(white, level=0.95)
-
-white<-svyglm(vitamin_d~log(urxmc1)+log(urxucr)+ age + factor(sex)+ bmi+ pir + log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.white.dsn, na.action=na.omit)
-summary(white)
-confint(white, level=0.95)
-
-white<-svyglm(vitamin_d~log(urxcnp)+log(urxucr)+ age + factor(sex)+ bmi+ pir + log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.white.dsn, na.action=na.omit)
-summary(white)
-confint(white, level=0.95)
-
-white<-svyglm(vitamin_d~log(urxcop)+log(urxucr)+ age + factor(sex)+ bmi+ pir + log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.white.dsn, na.action=na.omit)
-summary(white)
-confint(white, level=0.95)
-
-####BLACK
-
-black<-svyglm(vitamin_d~log(urxbph)+log(urxucr)+ age + factor(sex)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.black.dsn, na.action=na.omit)
-summary(black)
-confint(black, level=0.95)
-
-black<-svyglm(vitamin_d~log(urxmhp)+log(urxucr)+ age + factor(sex)+ pir + bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.black.dsn, na.action=na.omit)
-summary(black)
-confint(black, level=0.95)
-
-black<-svyglm(vitamin_d~log(urxmhh)+log(urxucr)+ age + factor(sex)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.black.dsn, na.action=na.omit)
-summary(black)
-confint(black, level=0.95)
-
-black<-svyglm(vitamin_d~log(urxmoh)+log(urxucr)+ age + factor(sex)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.black.dsn, na.action=na.omit)
-summary(black)
-confint(black, level=0.95)
-
-black<-svyglm(vitamin_d~log(urxecp)+log(urxucr)+ age + factor(sex)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.black.dsn, na.action=na.omit)
-summary(black)
-confint(black, level=0.95)
-
-black<-svyglm(vitamin_d~log(dehpsum)+log(urxucr)+ age + factor(sex)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.black.dsn, na.action=na.omit)
-summary(black)
-confint(black, level=0.95)
-
-black<-svyglm(vitamin_d~log(urxmbp)+log(urxucr)+ age + factor(sex)+ pir+bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.black.dsn, na.action=na.omit)
-summary(black)
-confint(black, level=0.95)
-
-black<-svyglm(vitamin_d~log(urxmib)+log(urxucr)+ age + factor(sex)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.black.dsn, na.action=na.omit)
-summary(black)
-confint(black, level=0.95)
-
-black<-svyglm(vitamin_d~log(urxmep)+log(urxucr)+ age + factor(sex)+ bmi+ pir+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.black.dsn, na.action=na.omit)
-summary(black)
-confint(black, level=0.95)
-
-black<-svyglm(vitamin_d~log(urxmzp)+log(urxucr)+ age + factor(sex)+ bmi+ pir +log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.black.dsn, na.action=na.omit)
-summary(black)
-confint(black, level=0.95)
-
-black<-svyglm(vitamin_d~log(urxmc1)+log(urxucr)+ age + factor(sex)+ bmi+ pir + log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.black.dsn, na.action=na.omit)
-summary(black)
-confint(black, level=0.95)
-
-black<-svyglm(vitamin_d~log(urxcnp)+log(urxucr)+ age + factor(sex)+ bmi+ pir + log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.black.dsn, na.action=na.omit)
-summary(black)
-confint(black, level=0.95)
-
-black<-svyglm(vitamin_d~log(urxcop)+log(urxucr)+ age + factor(sex)+ bmi+ pir + log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.black.dsn, na.action=na.omit)
-summary(black)
-confint(black, level=0.95)
-
-####Mexican
-
-mexican<-svyglm(vitamin_d~log(urxbph)+log(urxucr)+ age + factor(sex)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.mexican.dsn, na.action=na.omit)
-summary(mexican)
-confint(mexican, level=0.95)
-
-mexican<-svyglm(vitamin_d~log(urxmhp)+log(urxucr)+ age + factor(sex)+ pir + bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.mexican.dsn, na.action=na.omit)
-summary(mexican)
-confint(mexican, level=0.95)
-
-mexican<-svyglm(vitamin_d~log(urxmhh)+log(urxucr)+ age + factor(sex)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.mexican.dsn, na.action=na.omit)
-summary(mexican)
-confint(mexican, level=0.95)
-
-mexican<-svyglm(vitamin_d~log(urxmoh)+log(urxucr)+ age + factor(sex)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.mexican.dsn, na.action=na.omit)
-summary(mexican)
-confint(mexican, level=0.95)
-
-mexican<-svyglm(vitamin_d~log(urxecp)+log(urxucr)+ age + factor(sex)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.mexican.dsn, na.action=na.omit)
-summary(mexican)
-confint(mexican, level=0.95)
-
-mexican<-svyglm(vitamin_d~log(dehpsum)+log(urxucr)+ age + factor(sex)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.mexican.dsn, na.action=na.omit)
-summary(mexican)
-confint(mexican, level=0.95)
-
-mexican<-svyglm(vitamin_d~log(urxmbp)+log(urxucr)+ age + factor(sex)+ pir+bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.mexican.dsn, na.action=na.omit)
-summary(mexican)
-confint(mexican, level=0.95)
-
-mexican<-svyglm(vitamin_d~log(urxmib)+log(urxucr)+ age + factor(sex)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.mexican.dsn, na.action=na.omit)
-summary(mexican)
-confint(mexican, level=0.95)
-
-mexican<-svyglm(vitamin_d~log(urxmep)+log(urxucr)+ age + factor(sex)+ bmi+ pir+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.mexican.dsn, na.action=na.omit)
-summary(mexican)
-confint(mexican, level=0.95)
-
-mexican<-svyglm(vitamin_d~log(urxmzp)+log(urxucr)+ age + factor(sex)+ bmi+ pir +log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.mexican.dsn, na.action=na.omit)
-summary(mexican)
-confint(mexican, level=0.95)
-
-mexican<-svyglm(vitamin_d~log(urxmc1)+log(urxucr)+ age + factor(sex)+ bmi+ pir + log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.mexican.dsn, na.action=na.omit)
-summary(mexican)
-confint(mexican, level=0.95)
-
-mexican<-svyglm(vitamin_d~log(urxcnp)+log(urxucr)+ age + factor(sex)+ bmi+ pir + log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.mexican.dsn, na.action=na.omit)
-summary(mexican)
-confint(mexican, level=0.95)
-
-mexican<-svyglm(vitamin_d~log(urxcop)+log(urxucr)+ age + factor(sex)+ bmi+ pir + log(cot) + factor(season) + factor(vitdsup) + factor(cycle), vitd2.mexican.dsn, na.action=na.omit)
-summary(mexican)
-confint(mexican, level=0.95)
-
-############Unweighted analyses##########
-white.models=function(x){
-  vitd.x.white<-lm(vitamin_d~log(x)+log(urxucr)+ age + factor(sex)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), data=vitd2.white, na.action=na.omit)
-  b.x<-summary(vitd.x.white)$coef[2,1]
-  se.x<-summary(vitd.x.white)$coef[2,2]
-  p.x<-summary(vitd.x.white)$coef[2,4]
-  lo95ci<- exp(b.x-1.96*se.x)
-  hi95ci<- exp(b.x+1.96*se.x)
-  all.x<-cbind(b.x,se.x,p.x, lo95ci, hi95ci)#, nobs)
-  return(all.x)}
-white.results<-rbind(white.models(vitd2.white$urxbph),white.models(vitd2.white$urxmhp),white.models(vitd2.white$urxmhh),white.models(vitd2.white$urxmoh),white.models(vitd2.white$urxecp),white.models(vitd2.white$dehpsum),
-                    white.models(vitd2.white$urxmbp),white.models(vitd2.white$urxmib),white.models(vitd2.white$urxmep),white.models(vitd2.white$urxmzp),white.models(vitd2.white$urxmc1),white.models(vitd2.white$urxcnp), 
-                    white.models(vitd2.white$urxcop))
-row.names(white.results)<-c("BPA","MEHP","MEHHP","MEOHP","MECPP","DEHPsum","MBP","MiBP","MEP","MBzP","MCPP","MCNP","MCOP")
-white.results
-write.csv(white.results, file="white.csv")
-
-black.models=function(x){
-  vitd.x.black<-lm(vitamin_d~log(x)+log(urxucr)+ age + factor(sex)+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), data=vitd2.black, na.action=na.omit)
-  b.x<-summary(vitd.x.black)$coef[2,1]
-  se.x<-summary(vitd.x.black)$coef[2,2]
-  p.x<-summary(vitd.x.black)$coef[2,4]
-  lo95ci<- exp(b.x-1.96*se.x)
-  hi95ci<- exp(b.x+1.96*se.x)
-  all.x<-cbind(b.x,se.x,p.x, lo95ci, hi95ci)#, nobs)
-  return(all.x)}
-black.results<-rbind(black.models(vitd2.black$urxbph),black.models(vitd2.black$urxmhp),black.models(vitd2.black$urxmhh),black.models(vitd2.black$urxmoh),black.models(vitd2.black$urxecp),black.models(vitd2.black$dehpsum),
-                     black.models(vitd2.black$urxmbp),black.models(vitd2.black$urxmib),black.models(vitd2.black$urxmep),black.models(vitd2.black$urxmzp),black.models(vitd2.black$urxmc1),black.models(vitd2.black$urxcnp), 
-                     black.models(vitd2.black$urxcop))
-row.names(black.results)<-c("BPA","MEHP","MEHHP","MEOHP","MECPP","DEHPsum","MBP","MiBP","MEP","MBzP","MCPP","MCNP","MCOP")
-black.results
-write.csv(black.results, file="black.csv")
-
-mexican.models=function(x){
-  vitd.x.mexican<-lm(vitamin_d~log(x)+log(urxucr)+  age + factor(sex) + bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), data=vitd2.mexican, na.action=na.omit)
-  b.x<-summary(vitd.x.mexican)$coef[2,1]
-  se.x<-summary(vitd.x.mexican)$coef[2,2]
-  p.x<-summary(vitd.x.mexican)$coef[2,4]
-  lo95ci<- exp(b.x-1.96*se.x)
-  hi95ci<- exp(b.x+1.96*se.x)
-  all.x<-cbind(b.x,se.x,p.x, lo95ci, hi95ci)#, nobs)
-  return(all.x)}
-mexican.results<-rbind(mexican.models(vitd2.mexican$urxbph),mexican.models(vitd2.mexican$urxmhp),mexican.models(vitd2.mexican$urxmhh),mexican.models(vitd2.mexican$urxmoh),mexican.models(vitd2.mexican$urxecp),mexican.models(vitd2.mexican$dehpsum),
-                     mexican.models(vitd2.mexican$urxmbp),mexican.models(vitd2.mexican$urxmib),mexican.models(vitd2.mexican$urxmep),mexican.models(vitd2.mexican$urxmzp),mexican.models(vitd2.mexican$urxmc1),mexican.models(vitd2.mexican$urxcnp), 
-                     mexican.models(vitd2.mexican$urxcop))
-row.names(mexican.results)<-c("BPA","MEHP","MEHHP","MEOHP","MECPP","DEHPsum","MBP","MiBP","MEP","MBzP","MCPP","MCNP","MCOP")
-mexican.results
-write.csv(mexican.results, file="mexican.csv")
-
-mexican.models=function(x){
-  vitd.x.mexican<-lm(vitamin_d~log(x)+log(urxucr)+ age + factor(sex)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), data=vitd2.mexican, na.action=na.omit)
-  b.x<-summary(vitd.x.mexican)$coef[2,1]
-  se.x<-summary(vitd.x.mexican)$coef[2,2]
-  p.x<-summary(vitd.x.mexican)$coef[2,4]
-  lo95ci<- exp(b.x-1.96*se.x)
-  hi95ci<- exp(b.x+1.96*se.x)
-  all.x<-cbind(b.x,se.x,p.x, lo95ci, hi95ci)#, nobs)
-  return(all.x)}
-mexican.results<-rbind(mexican.models(vitd2.mexican$urxbph),mexican.models(vitd2.mexican$urxmhp),mexican.models(vitd2.mexican$urxmhh),mexican.models(vitd2.mexican$urxmoh),mexican.models(vitd2.mexican$urxecp),mexican.models(vitd2.mexican$dehpsum),
-                       mexican.models(vitd2.mexican$urxmbp),mexican.models(vitd2.mexican$urxmib),mexican.models(vitd2.mexican$urxmep),mexican.models(vitd2.mexican$urxmzp),mexican.models(vitd2.mexican$urxmc1),mexican.models(vitd2.mexican$urxcnp), 
-                       mexican.models(vitd2.mexican$urxcop))
-row.names(mexican.results)<-c("BPA","MEHP","MEHHP","MEOHP","MECPP","DEHPsum","MBP","MiBP","MEP","MBzP","MCPP","MCNP","MCOP")
-mexican.results
-write.csv(mexican.results, file="mexican.csv")
-
-
-###########################
-
-women.bpa<-lm(vitamin_d~log(bpa)+ log(urxucr)+ age + factor(race)+ bmi+ log(cot) + factor(season) + factor(suppl) + factor(cycle), data=vitd2.2039.male, na.action=na.omit)
-b.x<-summary(women.bpa)$coef[2,1]
-se.x<-summary(women.bpa)$coef[2,2]
-p.x<-summary(women.bpa)$coef[2,4]
-lo95ci<- (b.x-1.96*se.x)
-hi95ci<- (b.x+1.96*se.x)
-summary(women.bpa)
-b.x
-se.x
-p.x
-lo95ci
-hi95ci
-
-summary(lm(vitamin_d~log(bpa)+ log(urxucr)+ age + factor(race)+ bmi+ log(cot) + factor(season) + factor(suppl) + factor(cycle), data=vitd2.4059.female, na.action=na.omit))
-summary(lm(vitamin_d~log(bpa)+ log(urxucr)+ age + factor(race)+ bmi+ log(cot) + factor(season) + factor(suppl) + factor(cycle), data=vitd2.60.female, na.action=na.omit))
-
-###race, vit d supplement, pir (continuous), bmi (continuous), milk, gender, age
-###check stratified by race, gender, age groups
-
-###distributions
-dist=function(x){
-  geomean.x<-exp(mean(log(x),na.rm=T))
-  geosd.x<-exp(sd(log(x),na.rm=T))
-  q1.x<-quantile(x,probs=c(0.25),names=FALSE,na.rm=T)
-  q2.x<-quantile(x,probs=c(0.5),names=FALSE,na.rm=T)
-  q3.x<-quantile(x,probs=c(0.75),names=FALSE,na.rm=T)
-  ninety.x<-quantile(x,probs=c(0.9),names=FALSE,na.rm=T)
-  ninetyfive.x<-quantile(x,probs=c(0.95),names=FALSE,na.rm=T)
-  max.x<-quantile(x,probs=c(1),names=FALSE,na.rm=T)
-  all.x<-cbind(geomean.x,geosd.x,q1.x,q2.x,q3.x,ninety.x,ninetyfive.x,max.x)
-  return(all.x)}
-phthalate.distributions<-rbind(dist(vitd4$urxmbp),dist(vitd4$urxmhp),dist(vitd4$urxmc1))
-phthalate.distributions
-write.csv(phthalate.distributions,file="output.csv")
-
-vitd<-read.xport('data0106.xport') #load new R file created from SAS
-names(vitd)<-tolower(names(vitd)) #change variables to lower case
-save(vitd,file='vitd.rda') #save as permanent dataset
-load("vitd.rda") #load dataset
-
-setwd("C:Users/laujohns/Desktop")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
