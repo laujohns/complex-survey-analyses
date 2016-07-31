@@ -517,45 +517,6 @@ hist(vitd2$urxmep)#skewed, log transform
 hist(vitd2$bpa)#skewed, log transform
 hist(vitd2$cot)#skewed, log transform
 
-######################## BIVARIARTE ANALYSES #################################
-summary(svyglm(vitamin_d~factor(age_cat), vitd.ph.comp.dsn, na.action=na.omit)) #p<0.05
-summary(svyglm(vitamin_d~factor(sex), vitd.dsn, na.action=na.omit)) #p=0.09; may need to stratify by sex
-summary(svyglm(vitamin_d~factor(race), vitd.dsn, na.action=na.omit)) #p<0.01
-summary(svyglm(vitamin_d~pir, vitd.dsn, na.action=na.omit)) #p<0.05
-summary(svyglm(vitamin_d~factor(edu_cat), vitd.dsn, na.action=na.omit)) #p<0.05
-summary(svyglm(vitamin_d~alc, vitd.dsn, na.action=na.omit))#p>0.05
-summary(svyglm(vitamin_d~bmi, vitd.dsn, na.action=na.omit))#p<0.05
-summary(svyglm(vitamin_d~factor(smk), vitd.dsn, na.action=na.omit))#p<0.05
-summary(svyglm(vitamin_d~factor(milk), vitd.dsn, na.action=na.omit))#p<0.05
-summary(svyglm(vitamin_d~factor(sun), vitd.dsn, na.action=na.omit))#p<0.05
-summary(svyglm(vitamin_d~factor(fish), vitd.dsn, na.action=na.omit)#p<0.05
-summary(svyglm(vitamin_d~factor(season), vitd.dsn, na.action=na.omit))#p<0.05
-summary(svyglm(vitamin_d~factor(vitdsup), vitd.dsn, na.action=na.omit))#p<0.05
-summary(svyglm(vitamin_d~log(cot), vitd.dsn, na.action=na.omit))#p<0.05
-summary(svyglm(vitamin_d~factor(cycle), vitd.dsn, na.action=na.omit))#p<0.05
-summary(svyglm(vitamin_d~factor(smk), vitd.ph.comp.dsn, na.action=na.omit))
-
-summary(svyglm(log(urxmbp)~age, vitd.dsn, na.action=na.omit)) #p<0.05
-summary(svyglm(log(urxmbp)~factor(sex), vitd.dsn, na.action=na.omit)) #p=0.02; may need to stratify by sex
-summary(svyglm(log(urxmbp)~factor(race), vitd.dsn, na.action=na.omit)) #p<0.05
-summary(svyglm(log(urxmbp)~pir, vitd.dsn, na.action=na.omit)) #p<0.05
-summary(svyglm(log(urxmbp)~factor(edu_cat), vitd.dsn, na.action=na.omit)) #p>0.05
-summary(svyglm(log(urxmbp)~alc, vitd.dsn, na.action=na.omit))#p<0.05
-summary(svyglm(log(urxmbp)~bmi, vitd.ph.comp.dsn, na.action=na.omit))#p<0.05
-summary(svyglm(log(urxmbp)~factor(smk), vitd.dsn, na.action=na.omit))#p<0.05
-summary(svyglm(log(urxmbp)~factor(milk), vitd.dsn, na.action=na.omit))#p=0.7
-summary(svyglm(log(urxmep)~factor(sun), vitd2_ph_comp, na.action=na.omit))#p>05 except for those who didn't use sunscreen - had higher phthalates?!
-summary(svyglm(log(urxmbp)~factor(fish), vitd.dsn, na.action=na.omit))#p=0.05
-summary(svyglm(log(urxmbp)~factor(season), vitd.dsn, na.action=na.omit))#p<0.05
-summary(svyglm(log(urxmbp)~factor(vitdsup), vitd.dsn, na.action=na.omit))#p<0.05
-summary(svyglm(log(urxmbp)~factor(cycle), vitd.dsn, na.action=na.omit))#p<0.05
-summary(svyglm(log(urxmbp)~factor(smk), vitd.ph.dsn, na.action=na.omit))
-
-summary(lm(log(urxmep)~factor(sun), data=vitd2_ph_comp))
-
-###check correlation to see which phthalate to use for testing these bivariate associations
-cor.test(vitd2.adults$vitamin_d, log(vitd2.adults$urxmcp), use="complete.obs")#p<0.001
-
 ######################## REGRESSION ANALYSES #################################
 
 #run crude models
@@ -577,53 +538,6 @@ summary(svyglm(vitamin_d~log(vitd2.women$urxmcp)+log(vitd2.women$urxucr)+ vitd2.
            + factor(vitd2.women$season) + factor(cycle), data=vitd2.women))#p<0.05
 
 hist(vitd2_ph_comp$vitamin_d[which(vitd2_ph_comp$vitdsu==1)])
-
-###########calculate IQR for conversion##########
-
-svyquantile(~urxbph,vitd.ph.comp.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmhp,vitd.ph.comp.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmhh,vitd.ph.comp.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmoh,vitd.ph.comp.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxecp,vitd.ph.comp.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~dehpsum,vitd.ph.comp.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmbp,vitd.ph.comp.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmib,vitd.ph.comp.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmep,vitd.ph.comp.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmzp,vitd.ph.comp.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmc1,vitd.ph.comp.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxcnp,vitd.ph.comp.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxcop,vitd.ph.comp.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~vitamin_d,vitd.ph.comp.dsn,c(.5),na.rm=TRUE)
-
-svyquantile(~urxbph,vitd2.female.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmhp,vitd2.female.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmhh,vitd2.female.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmoh,vitd2.female.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxecp,vitd2.female.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~dehpsum,vitd2.female.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmbp,vitd2.female.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmib,vitd2.female.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmep,vitd2.female.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmzp,vitd2.female.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmc1,vitd2.female.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxcnp,vitd2.female.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxcop,vitd2.female.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~vitamin_d,vitd2.female.dsn,c(.5),na.rm=TRUE)
-
-svyquantile(~urxbph,vitd2.male.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmhp,vitd2.male.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmhh,vitd2.male.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmoh,vitd2.male.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxecp,vitd2.male.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~dehpsum,vitd2.male.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmbp,vitd2.male.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmib,vitd2.male.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmep,vitd2.male.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmzp,vitd2.male.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxmc1,vitd2.male.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxcnp,vitd2.male.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~urxcop,vitd2.male.dsn,c(0.25,0.75),na.rm=TRUE)
-svyquantile(~vitamin_d,vitd2.male.dsn,c(.5),na.rm=TRUE)
 
 ########### Weighted Models ###############
 
@@ -864,7 +778,7 @@ female.models(vitd2.2039.female$urxmbp),female.models(vitd2.female$urxmib),femal
 female.models(vitd2.2039.female$urxcop))
 row.names(female.results)<-c("BPA","MEHP","MEHHP","MEOHP","MECPP","DEHPsum","MBP","MiBP","MEP","MBzP","MCPP","MCNP","MCOP")
 female.results
-write.csv(female.results, file="female_2039.csv")
+write.csv(female.results, file="female.csv")
 
 male.models=function(x){
   vitd.x.male<-lm(vitamin_d~log(x)+log(urxucr)+ age + factor(race)+ pir+ bmi+ log(cot) + factor(season) + factor(vitdsup) + factor(cycle), data=vitd2.male, na.action=na.omit)
@@ -876,12 +790,12 @@ male.models=function(x){
   #nobs <- (vitd.x.male)
   all.x<-cbind(b.x,se.x,p.x, lo95ci, hi95ci)#, nobs)
   return(all.x)}
-male.results<-rbind(male.models(vitd2.male$urxbph),male.4059.models(vitd2.4059.male$urxmhp),male.4059.models(vitd2.4059.male$urxmhh),male.models(vitd2.male$urxmoh),male.models(vitd2.male$urxecp),male.models(vitd2.male$dehpsum),
-                      male.models(vitd2.male$urxmbp),male.4059.models(vitd2.4059.male$urxmib),male.4059.models(vitd2.4059.male$urxmep),male.models(vitd2.male$urxmzp),male.models(vitd2.male$urxmc1),male.models(vitd2.male$urxcnp), 
+male.results<-rbind(male.models(vitd2.male$urxbph),male.models(vitd2.male$urxmhp),male.models(vitd2.male$urxmhh),male.models(vitd2.male$urxmoh),male.models(vitd2.male$urxecp),male.models(vitd2.male$dehpsum),
+                      male.models(vitd2.male$urxmbp),male.models(vitd2.male$urxmib),male.models(vitd2.male$urxmep),male.models(vitd2.male$urxmzp),male.models(vitd2.male$urxmc1),male.models(vitd2.male$urxcnp), 
                       male.models(vitd2.male$urxcop))
 row.names(male.results)<-c("BPA","MEHP","MEHHP","MEOHP","MECPP","DEHPsum","MBP","MiBP","MEP","MBzP","MCPP","MCNP","MCOP")
 male.results
-write.csv(male.results, file="male_4059.csv")
+write.csv(male.results, file="male.csv")
 
 
 
