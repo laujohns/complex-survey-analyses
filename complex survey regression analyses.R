@@ -12,238 +12,178 @@ library(nlme)
 library (survey)
 
 setwd ("C:/Users/laujohns/Dropbox/Vitamin D - NHANES/Analyses/R code") #set working directory
-#vitd<-read.csv('data 051515.csv') #to read in a CSV
 
-vitd<-read.xport('data0110.xpt') #observations and variables match those in SAS; N=52,195
+#### Load datasets ####
+
+vitd<-read.xport('data0110.xpt') #observations and variables match those in SAS; N=52,195 participants in cycles 2001-2010
 names(vitd)
 names(vitd)<-tolower(names(vitd))
 names(vitd)#check to make sure lower case
+
 save(vitd,file="vitd.rda")#save as permanent dataset
 load("vitd.rda")
 load("vitd2_ph_comp.rda")
 
-vitd2<-subset(vitd, cycle!=1 & cycle!=2)
-save(vitd2, file="vitd2.rda")
-vitd3<-subset(vitd2, vitd2$age>=20)#create temporary dataset; N=31,034, 780 objects
-save(vitd2, file="vitd2.rda")
+#### Subset for years 2005-2010 ####
 
-vitd2_adults<-subset(vitd2, age>=20)#N=17132 which matches NHANES files for total population interviewed!
+vitd2<-subset(vitd, cycle!=1 & cycle!=2)#only work with data from 2005-2010 (i.e., get rid of 2001-2004 data)
+describe.vector(factor(vitd2$cycle), exclude.missing=TRUE)#frequency by cycle to make sure subsetting worked
+save(vitd2, file="vitd2.rda")#save dataset
+
+#### Subset for adults >=20 years ####
+
+vitd2_adults<-subset(vitd2, ridageyr>=20)#create dataset of adults; N=17132 which matches NHANES files for total population interviewed!
 names(vitd)
+
 ######################## VARIABLE CREATION/DATA CLEANING #################################
 
-#rename bpa variables[not in cycle 1]
-vitd2$bpa<-vitd2$urxbph
+##### rename bpa variable [not in cycle 1] and check distributions for normality ####
+vitd2$bpa<-vitd2$urxbph #rename variable
 
-hist(log(vitd2$bpa), breaks=50)
-mean(vitd2$urxbph[which(vitd2$cycle==5)], na.rm=T)
-mean(vitd2$bpa[which(vitd2$cycle==5)], na.rm=T)
-
+#check to make sure renaming worked by calculating mean by cycle for both variables
 tapply (vitd2$bpa, vitd2$cycle, mean, na.rm=T)
+tapply (vitd2$urxbph, vitd2$cycle, mean, na.rm=T)
 
-#rename vitamin d variables lbdvid and lbxvid to vitamin_d
+#investigate normality of data 
+hist(log(vitd2$bpa), breaks=50)
 
-summ(vitd2$lbxvidlc)
-vitd2$vitamin_d[vitd2$cycle==3]<-vitd2$lbdvidms[vitd2$cycle==3] #rename lbxvid in cycle 1 to vitamin_d
+#### rename vitamin d variables lbdvid and lbxvid to vitamin_d ####
+summ(vitd2$lbxvidms)#look at mean and sd
+vitd2$vitamin_d[vitd2$cycle==3]<-vitd2$lbdvidms[vitd2$cycle==3] #rename lbxvid in cycle 3 to vitamin_d
 vitd2$vitamin_d[vitd2$cycle==4 | vitd2$cycle==5]<-vitd2$lbxvidms[vitd2$cycle==4 | vitd2$cycle==5]#rename lbdvid in cycles 4 and 5 to vitamin_d
-summ(vitd2$vitamin_d)
-#make sure number of obs per cycle for vitamin_d match above code
+summ(vitd2$vitamin_d)#look at mean and sd of new variable
+
+#make sure number of obs per cycle for vitamin_d match old and newly named variable
 length(vitd2$vitamin_d[which(vitd2$cycle==4)]) 
 mean(vitd2$vitamin_d[which(vitd2$cycle==4)], na.rm=T)
 length(vitd2$lbdvidms[which(vitd2$cycle==4)]) 
 mean(vitd2$lbxvidms[which(vitd2$cycle==4)], na.rm=T)
 
-summary (vitd2$vitamin_d)
-
-#find means by cycle and make sure number of vitamin d observations matches SAS (#nonmissing)
+#find means by cycle and make sure number of vitamin d observations matches (#nonmissing)
 describeBy(vitd2$vitamin_d, vitd2$cycle)#from psych package get the means/medians by group 
+tapply (vitd2$lbdvidms, vitd2$cycle, mean, na.rm=T)
+tapply (vitd2$lbxvidms, vitd2$cycle, mean, na.rm=T)
+
+#investigate normality of vitamin_d variable
 hist(vitd2$vitamin_d, breaks=30)
 
-#vitamin d summary statistics match those in SAS (where vitamin_D ne . and urxmbp ne . and cycle=1)
-summary(vitd_final$vitamin_d[which(vitd_final$cycle==1)]) #provide summary data stats on vitamin_d in cycle 1
-
-#create age categories
-#vitd2$age_cat<-cut(vitd2$ridageyr, breaks=c(6,11,19,40,60,80), lower=6, upper=80) #(a,b], need to specify lower
-#table(vitd2$age_cat) #n in each category matches those in SAS
-
-#rename ridageyr to age
+#### rename ridageyr to age ####
 vitd2$age<-vitd2$ridageyr
 length(vitd2$age)
-length(vitd2$age[which(vitd2$age==0)])
-length(vitd2$ridageyr[which(vitd2$ridageyr==0)])
+length(vitd2$age[which(vitd2$age==0)])#make sure number of missing "age"="ridageyr"
+length(vitd2$ridageyr[which(vitd2$ridageyr==0)])#make sure number of missing "age"="ridageyr"
 
+#create factor variable for age
 vitd2$age_cat<-cut2(vitd2$age, c(20, 40, 60), minmax=T) #[a,b) no need to specify lower
-table(vitd2$age_cat)
+table(vitd2$age_cat) #[ 0,20) [20,40) [40,60) [60,85]
 
-#create education variable
+#### rename and create education variable ####
 vitd2$edu_cat[vitd2$dmdeduc2==1|vitd2$dmdeduc2==2]<-1 #<HS
 vitd2$edu_cat[vitd2$dmdeduc2==3]<-2 #HS/GED
 vitd2$edu_cat[vitd2$dmdeduc2==4]<-3 #some college
 vitd2$edu_cat[vitd2$dmdeduc2==5]<-4 #college or above
 vitd2$edu_cat[vitd2$dmdeduc2==7|vitd2$dmdeduc2==9]<-NA
-
+vitd2$edu_cat <- factor(vitd2$edu_cat,
+                    levels = c(1,2,3,4),
+                    labels = c("<HS", "HS/GED", "Some college", "College or above"))
+#check to make sure variable revalue worked
 table(vitd2$dmdeduc2)
 table(vitd2$edu_cat)
 
-#rename gender variable
+#### rename gender variable ####
 vitd2$sex<-vitd2$riagendr
-
+vitd2$sex <- factor(vitd2$sex,
+                        levels = c(1,2),
+                        labels = c("Male", "Female"))
+#check to make sure revalue worked
 table(vitd2$riagendr)#1=male, 2=female
 table(vitd2$sex)
-table (vitd2$riagendr, vitd2$cycle)
-table (vitd2$sex, vitd2$cycle)
+table(vitd2$riagendr, vitd2$cycle)
+table(vitd2$sex, vitd2$cycle)
 
 #rename race/ethnicity variable
 vitd2$race<-vitd2$ridreth1
-
 vitd2$race_cat[vitd2$ridreth1==1|vitd2$ridreth1==2]<-1#hispanic
 vitd2$race_cat[vitd2$ridreth1==3]<-2 #NHW
 vitd2$race_cat[vitd2$ridreth1==4]<-3 #NHB
 vitd2$race_cat[vitd2$ridreth1==5]<-4 #other
-
+vitd2$race_cat <- factor(vitd2$race_cat,
+                    levels = c(1,2,3,4),
+                    labels = c("Hispanic", "NH White", "NH Black", "Other"))
+#See if revalue worked
 table(vitd2$race_cat)
 table(vitd2$ridreth1) #1=MA, #2=Other Hisp, #3=NHW, #4=NHB, #5 other
 table(vitd2$race)
 
-#rename PIR variable
+#### rename PIR variable ####
 vitd2$pir<-vitd2$indfmpir
-
+#see if recode worked
 summary(vitd2$indfmpir)
 summary(vitd2$pir)
-
-#rename pregnancy variable
-vitd2$pregnant[vitd2$ridexprg==1]<-1 #yes
-vitd2$pregnant[vitd2$ridexprg==2]<-2 #no
-vitd2$pregnant[vitd2$ridexprg==3]<-NA
-
-table(vitd2$pregnant)
-table(vitd2$ridexprg)
-
-table<-table(vitd2$ridexprg, vitd2$cycle)
-table
-
-table2<-table(vitd2$pregnant, vitd2$cycle)
-table2
-
-summary(vitd2$pregnant[vitd2$cycle==1])
-
-#create alcohol variable
+#rename and revalue alcohol variable
 vitd2$alc<-vitd2$alq130
 vitd2$alc[vitd2$alq130==999 | vitd2$alq130==777]<-NA
-
+#see if revalue worked
 table<-table(vitd2$alc, vitd2$cycle)
 table
 table2<-table(vitd2$alq130, vitd2$cycle)
 table2
 
-#create milk variable
-vitd2$milk2[vitd2$cycle==1]<-vitd2$dbd229[vitd2$cycle==1]
-vitd2$milk2[vitd2$cycle==2 | vitd2$cycle==3 | vitd2$cycle==4 | vitd2$cycle==5]<-vitd2$dbq229[vitd2$cycle==2 | vitd2$cycle==3 | vitd2$cycle==4 | vitd2$cycle==5]
-#recode 7 and 9 to NA
-vitd2$milk[vitd2$milk2==7 | vitd2$milk2==9]<-NA
-vitd2$milk[vitd2$milk2==2 | vitd2$milk2==3]<-2 #no regular milk drinker
-vitd2$milk[vitd2$milk2==1]<-1 #yes regular milk drinker
-
-table(vitd2$milk2)
-table(vitd2$milk)
-
-#check to make sure milk variable created correctly
-table(vitd2$dbq229[(vitd2$cycle==2)])
-table(vitd2$milk[(vitd2$cycle==2)])
-
-table(vitd2$dbd229[(vitd2$cycle==1)])
-table(vitd2$milk[(vitd2$cycle==1)])
-
-#additional code if want to use other milk variable
-#vitd_final$milk_cat[vitd_final$milk==0]<-0 #Never
-#vitd_final$milk_cat[vitd_final$milk==1 | vitd_final$milk==2]<-1 #>0 and <1 time per day
-#vitd_final$milk_cat[vitd_final$milk==3]<-2 #>=1 time per day
-#vitd_final$milk_cat[vitd_final$milk==4 | vitd_final$milk==7 | vitd_final$milk==7]<-2 #>=1 time per day
-
-#create smoking variable
+#### create smoking variables #### 
 vitd2$smk[vitd2$smq020==1]<-1 #yes smoked 100 cigs in lifetime and current smoke
 vitd2$smk[vitd2$smq020==2]<-2 #no did not smoke
 vitd2$smk[vitd2$smq020==7|vitd2$smq020==9]<-NA
+vitd2$smk <- factor(vitd2$smk,
+                         levels = c(1,2),
+                         labels = c("Yes", "No"))
+class(vitd2$smk)
+summ(vitd2$smk)
 
 vitd2$smk_cat[vitd2$smq040==1 | vitd2$smq040==2]<-1 #current smoker
 vitd2$smk_cat[vitd2$smq040==3]<-2 #former
 vitd2$smk_cat[vitd2$smk==2]<-3 #never
 vitd2$smk_cat[vitd2$smq040==7 |vitd2$smq040==9]<-NA
+vitd2$smk_cat <- factor(vitd2$smk_cat,
+                         levels = c(1,2,3),
+                         labels = c("Current smoker", "Former smoker", "Never smoker"))
 
+#see if recodes worked
 table(vitd2$smk, vitd2$cycle)
 table(vitd2$smk_cat, vitd2$cycle)
-
 summary(vitd2$smk)
 summary(vitd2$smq020)
 table2<-table(vitd2$smq020, vitd2$cycle)
 table2
 
-#create bmi variable
-vitd2$bmi<-vitd2$bmxbmi
+#### create bmi variables ####
+vitd2$bmi<-vitd2$bmxbmi #continuous
+vitd2$bmi_cat<-cut2(vitd2$bmi, c(18.5 , 25, 30)) #<18.5, 18.5-24.99, 25-29.99, 30+
+summ(vitd2$bmi_cat)
 
-vitd2$bmi_cat<-cut2(vitd2$bmi, c(18.5 , 25, 30)) #[a,b) no need to specify lower
+#see if recode worked
 class(vitd2$bmi_cat)
-
 table(vitd2$bmi_cat)
 summary(vitd2$bmi)
 summary(vitd2$bmxbmi)
 
-#create vitamin D supplement
-
-#vitd2$suppl[vitd2$dsd010==1]<-1 #yes, took suppl in last month
-#vitd2$suppl[vitd2$dsd010==2]<-2 #no did not take suppl in last month
-#vitd2$suppl[vitd2$dsd010==7|vitd2$dsd010==9]<-NA
-
-#table<-table(vitd2$suppl, vitd2$cycle)
-#table
-
-#table2<-table(vitd2$dsd010, vitd2$cycle)
-#table2
-
-table (vitd2$vitdsup, vitd2$cycle)
-load("vitd2.rda")
-
-
-#create sunscreen (not in cycles 1 or 4)
-vitd2$sun[vitd2$deq034d==1]<-1 #always
-vitd2$sun[vitd2$deq034d==2]<-2 #most of the time
-vitd2$sun[vitd2$deq034d==3]<-3 #sometimes
-vitd2$sun[vitd2$deq034d==4]<-4 #rarely
-vitd2$sun[vitd2$deq034d==5]<-5 #never
-vitd2$sun[vitd2$deq034d==7|vitd2$deq034d==9]<-NA
-
-table<-table(vitd2$sun, vitd2$cycle)
-table
-
-table2<-table(vitd2$deq034d, vitd2$cycle)
-table2
-
-#create fish; weird age categories- look at code book
-vitd2$fish[vitd2$drd360==1]<-1 #yes ate fish in past 30 days
-vitd2$fish[vitd2$drd360==2]<-2 #no didn't eat fish in past 30 days
-vitd2$fish[vitd2$drd360==7|vitd2$deq034d==9]<-NA
-
-table<-table(vitd2$fish, vitd2$cycle)
-table
-
-table2<-table(vitd2$drd360, vitd2$cycle)
-table2
-
-#create time period taking exam
+#### create time period taking exam ###
 vitd2$season<-vitd2$ridexmon #1=nov1-april30; 2=may1-oct31
+vitd2$season <- factor(vitd2$season,
+                       levels = c(1,2),
+                       labels = c("November 1-April 30", "May 1 - October 31"))
 
+#see if recode worked
 table<-table(vitd2$season, vitd2$cycle)
 table
-
 table2<-table(vitd2$ridexmon, vitd2$cycle)
 table2
 
-#create cotinine variable
-
+##### create cotinine variable ### 
 vitd2$cot<-vitd2$lbxcot
 
+#see if recode worked
 tapply(vitd2$cot, vitd2$cycle, mean, na.rm=T)
 tapply(vitd2$lbxcot, vitd2$cycle, mean, na.rm=T)
-
 summary(vitd2$cot)
 
 #######create survey design#########
